@@ -32,6 +32,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
+const port = process.env.PORT || 4000
+
 const fastify = Fastify({
   logger: true
 });
@@ -107,7 +109,7 @@ fastify.register(cityRoutes, { prefix: '/api/cities' });
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 4000,host:0.0.0.0 });
+    await fastify.listen({port: port, host: '0.0.0.0'});
     fastify.log.info(`Swagger docs at http://localhost:3001/docs`);
   } catch (err) {
     fastify.log.error(err);
