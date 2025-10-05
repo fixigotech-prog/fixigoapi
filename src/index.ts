@@ -107,7 +107,7 @@ fastify.register(cityRoutes, { prefix: '/api/cities' });
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 3001 });
+    await fastify.listen({ port: 4000,host:0.0.0.0 });
     fastify.log.info(`Swagger docs at http://localhost:3001/docs`);
   } catch (err) {
     fastify.log.error(err);
