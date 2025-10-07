@@ -36,7 +36,8 @@ dotenv.config();
 const port = process.env.PORT || 4000
 
 const fastify = Fastify({
-  logger: true
+  logger: true,
+  bodyLimit: 50 * 1024 * 1024, // 50MB max, adjust as needed
 });
 
 const publicPath = path.join(__dirname, "public");
@@ -58,7 +59,7 @@ fastify.register(multipart, {
 
 // Middleware/Plugins
 fastify.register(cors, {
-  origin: '*',
+  origin: true,
 });
 
 // Swagger setup
