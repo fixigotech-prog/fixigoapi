@@ -23,6 +23,7 @@ import {promoCodeRoutes} from './routes/promocodeRoutes';
 import { adminUserRoutes } from './routes/adminUsers';
 import { propertyRoutes } from './routes/propertyRoutes';
 import { cityRoutes } from './routes/cityRoutes';
+import { frequentServiceRoutes } from './routes/frequentServiceRoutes';
 
 //declare module 'fastify
 //declare module 'fastify' {}
@@ -96,21 +97,29 @@ fastify.register(swaggerUi, {
   routePrefix: '/docs',
 });
 
+// Health check endpoint
+fastify.get('/health', async (request, reply) => {
+  return { status: 'ok', timestamp: new Date().toISOString() };
+});
+
 // Register routes
 fastify.register(authRoutes, { prefix: '/api/auth' });
 fastify.register(serviceRoutes, { prefix: '/api/services' });
 fastify.register(categoryRoutes, { prefix: '/api/categories' });
-fastify.register(bookingRoutes, { prefix: '/api/bookings' }); fastify.register(uploadRoutes, { prefix: '/api/upload' })
+fastify.register(bookingRoutes, { prefix: '/api/bookings' });
+fastify.register(uploadRoutes, { prefix: '/api/upload' });
 fastify.register(promoCodeRoutes, { prefix: '/api/promocodes' });
 fastify.register(offerRoutes, { prefix: '/api/offers' });
 fastify.register(adminUserRoutes, { prefix: '/api/admin-users' });
 fastify.register(propertyRoutes, { prefix: '/api/properties' });
 fastify.register(cityRoutes, { prefix: '/api/cities' });
+fastify.register(frequentServiceRoutes, { prefix: '/api/frequent-services' });
 
 const start = async () => {
   try {
     await fastify.listen({port: port, host: '0.0.0.0'});
-    fastify.log.info(`Swagger docs at http://localhost:3001/docs`);
+    fastify.log.info(`Server running on http://localhost:${port}`);
+    fastify.log.info(`Swagger docs at http://localhost:${port}/docs`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

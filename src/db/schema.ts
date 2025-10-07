@@ -54,6 +54,17 @@ export const cities = pgTable('cities', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const frequentServices = pgTable('frequent_services', {
+  id: serial('id').primaryKey(),
+  serviceId: integer('service_id').references(() => services.id).notNull(),
+  usageCount: integer('usage_count').default(0).notNull(),
+  displayOrder: integer('display_order').default(0).notNull(),
+  imageUrl: text('image_url'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 
 export const services = pgTable('services', {
   id: serial('id').primaryKey(),
@@ -241,6 +252,7 @@ export const serviceRelations = relations(services, ({ one, many }) => ({
     bookings: many(bookings),
     details: many(servicesDetails),
     pricing: many(servicesPricing),
+    frequentServices: many(frequentServices),
     category: one(categories, {
         fields: [services.categoryId],
         references: [categories.id],
@@ -254,6 +266,13 @@ export const serviceRelations = relations(services, ({ one, many }) => ({
 export const cityRelations = relations(cities, ({ many }) => ({
     services: many(services),
     servicesPricing: many(servicesPricing),
+}));
+
+export const frequentServiceRelations = relations(frequentServices, ({ one }) => ({
+    service: one(services, {
+        fields: [frequentServices.serviceId],
+        references: [services.id],
+    }),
 }));
 
 export const serviceDetailsRelations = relations(servicesDetails, ({ one }) => ({

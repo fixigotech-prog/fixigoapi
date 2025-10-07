@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { services,servicesDetails, servicesPricing } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { services,servicesDetails, servicesPricing, categories } from '../db/schema';
+import { eq, ilike } from 'drizzle-orm';
 
 // Define a type for the decorated fastify instance
 interface App extends FastifyInstance {
@@ -186,4 +186,30 @@ export const deleteService = async (request: FastifyRequest<{ Params: ServicePar
     }
     throw new Error('Failed to delete service.');
   }
+};
+
+export const searchServicesByCategory = async (request: FastifyRequest<{ Querystring: { categoryName: string } }>, reply: FastifyReply) => {
+  const app = request.server as App;
+  const { categoryName } = request.query;
+
+  const servicesWithCategory = await app.db
+    .select({
+      id: services.id,
+      categoryId: services.categoryId,
+      cityId: services.cityId,
+      imageUrl: services.imageUrl,
+      videoUrl: services.videoUrl,
+      price: services.price,
+      term: services.term,
+      termUnit: services.termUnit,
+      isActive: services.isActive,
+      createdAt: services.createdAt,
+      updatedAt: services.updatedAt,
+      categoryName: categories.name
+    })
+    .from(services)
+    .innerJoin(categories, eq(services.categoryId, categories.id))
+    .where(ilike(categories.name, `%${categoryName}%`));
+
+  return reply.send(servicesWithCategory);
 };

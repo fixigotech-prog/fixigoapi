@@ -15,6 +15,13 @@
       "when": 1759575504515,
       "tag": "0001_tricky_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759779899446,
+      "tag": "0002_tiny_absorbing_man",
+      "breakpoints": true
     }
   ]
 }
