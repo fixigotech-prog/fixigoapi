@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { frequentServices, services } from '../db/schema';
+import { frequentServices, services, servicesDetails } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 interface App extends FastifyInstance {
@@ -37,12 +37,15 @@ export const getFrequentServices = async (request: FastifyRequest, reply: Fastif
     .select({
       id: frequentServices.id,
       serviceId: frequentServices.serviceId,
+      serviceName: servicesDetails.name,
       usageCount: frequentServices.usageCount,
       imageUrl: frequentServices.imageUrl,
       displayOrder: frequentServices.displayOrder,
       isActive: frequentServices.isActive,
     })
     .from(frequentServices)
+    .leftJoin(services, eq(frequentServices.serviceId, services.id))
+    .leftJoin(servicesDetails, eq(services.id, servicesDetails.serviceId))
     .where(eq(frequentServices.isActive, true))
     .orderBy(desc(frequentServices.usageCount), frequentServices.displayOrder);
 
