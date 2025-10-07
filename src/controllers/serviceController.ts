@@ -31,7 +31,7 @@ interface ServiceBody {
   isActive: boolean;
   imageUrl?: string;
   videoUrl?: string;
-  details: ServiceDetailPayload[];
+  details: ServiceDetailPayload;
   pricing: ServicePricingPayload[];
 }
 
@@ -60,26 +60,26 @@ export const createService = async (request: FastifyRequest<{ Body: ServiceBody 
         })
         .returning();
 
-      // If there are no details, we can just return the service
-      if ((!details || details.length === 0) && (!pricing || pricing.length === 0)) {
-        return { ...service, details: [], pricing: [] };
+      // If there are no details or pricing, we can just return the service
+      if (!details && (!pricing || pricing.length === 0)) {
+        return { ...service, details: null, pricing: [] };
       }
 
       // 2. Prepare service details with the new service ID
-      const serviceDetailsToInsert = details.map((detail) => ({
-        ...detail,
+      const serviceDetailToInsert = {
+        ...details,
         serviceId: service.id,
-      }));
+      };
 
       const servicePricingToInsert = pricing.map((price) => ({
         ...price,
         serviceId: service.id,
       }));
 
-      // 3. Insert all service details
-      const newDetails = await tx
+      // 3. Insert service details
+      const [newDetail] = await tx
         .insert(servicesDetails)
-        .values(serviceDetailsToInsert)
+        .values(serviceDetailToInsert)
         .returning();
       
       // 4. Insert all service pricing
@@ -90,7 +90,7 @@ export const createService = async (request: FastifyRequest<{ Body: ServiceBody 
 
 
       // 5. Combine and return
-      return { ...service, details: newDetails, pricing: newPricing };
+      return { ...service, details: newDetail, pricing: newPricing };
     });
     return reply.status(201).send(newServiceWithDetails);
   } catch (error) {
