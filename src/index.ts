@@ -14,9 +14,6 @@ import { serviceRoutes } from './routes/services';
 import { categoryRoutes } from './routes/categoryRoutes';
 import { bookingRoutes } from './routes/bookings';
 
-
-
-
 import { uploadRoutes } from './routes/uploadRoutes';
 import { offerRoutes } from './routes/offersRouter';
 import {promoCodeRoutes} from './routes/promocodeRoutes';
@@ -24,6 +21,7 @@ import { adminUserRoutes } from './routes/adminUsers';
 import { propertyRoutes } from './routes/propertyRoutes';
 import { cityRoutes } from './routes/cityRoutes';
 import { frequentServiceRoutes } from './routes/frequentServiceRoutes';
+import { addressRoutes } from './routes/addressRoutes';
 
 //declare module 'fastify
 //declare module 'fastify' {}
@@ -115,6 +113,7 @@ fastify.register(adminUserRoutes, { prefix: '/api/admin-users' });
 fastify.register(propertyRoutes, { prefix: '/api/properties' });
 fastify.register(cityRoutes, { prefix: '/api/cities' });
 fastify.register(frequentServiceRoutes, { prefix: '/api/frequent-services' });
+fastify.register(addressRoutes, { prefix: '/api/addresses' });
 
 const start = async () => {
   try {

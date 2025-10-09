@@ -1,17 +1,40 @@
-import { pgTable, text, varchar, timestamp, boolean, primaryKey, integer, pgEnum, serial, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, timestamp, boolean, primaryKey, integer, serial, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-export const discountType = pgEnum('discount_type', ['percentage', 'fixed']);
-export const userRole = pgEnum('user_role', ['super_admin','admin', 'customer', 'expert','customer_service']);
-export const bookingStatus = pgEnum('booking_status', ['pending', 'confirmed', 'cancelled', 'completed']);
-export const orderStatus = pgEnum('order_status', ['pending', 'paid', 'failed', 'refunded']);
-export const propertyType = pgEnum('property_type', ['apartment', 'villa', 'bungalow', 'house', 'office']);
-export const propertySize = pgEnum('property_size', ['Studio','1 BHK', '2 BHK', '3 BHK', '4 BHK', '5 BHK','large', 'extra_large','Small Office','Medium Office','Large Office']);
+export const discountTypes = pgTable('discount_types', {
+  id: serial('id').primaryKey(),
+  name: text('name').unique().notNull(), // 'percentage', 'fixed'
+  createdAt: timestamp('created_at').defaultNow(),
+});
 
+export const userRoles = pgTable('user_roles', {
+  id: serial('id').primaryKey(),
+  name: text('name').unique().notNull(), // 'super_admin', 'admin', 'customer', 'expert', 'customer_service'
+  createdAt: timestamp('created_at').defaultNow(),
+});
 
-export const roles = pgTable('roles', {
-    id: serial('id').primaryKey(),
-    name: userRole('name').unique().notNull(),
+export const bookingStatuses = pgTable('booking_statuses', {
+  id: serial('id').primaryKey(),
+  name: text('name').unique().notNull(), // 'pending', 'confirmed', 'cancelled', 'completed'
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const orderStatuses = pgTable('order_statuses', {
+  id: serial('id').primaryKey(),
+  name: text('name').unique().notNull(), // 'pending', 'paid', 'failed', 'refunded'
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const propertyTypes = pgTable('property_types', {
+  id: serial('id').primaryKey(),
+  name: text('name').unique().notNull(), // 'apartment', 'villa', 'bungalow', 'house', 'office'
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const propertySizes = pgTable('property_sizes', {
+  id: serial('id').primaryKey(),
+  name: text('name').unique().notNull(), // 'Studio', '1 BHK', '2 BHK', etc.
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const users = pgTable('users', {
@@ -20,7 +43,7 @@ export const users = pgTable('users', {
   email: text('email').unique(),
   password: text('password').notNull(),
   phone: text('phone').unique().notNull(),
-  role: userRole('role').notNull(),
+  roleId: integer('role_id').references(() => userRoles.id).notNull(),
   designation: text('designation'),
   isVip: boolean('is_vip').default(false),
   vipStartDate: timestamp('vip_start_date'),
@@ -50,6 +73,7 @@ export const cities = pgTable('cities', {
   country: text('country'),
   iso2: text('iso2'),
   state: text('state'),
+  isActive: boolean('is_active').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -64,7 +88,6 @@ export const frequentServices = pgTable('frequent_services', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
-
 
 export const services = pgTable('services', {
   id: serial('id').primaryKey(),
@@ -105,9 +128,9 @@ export const servicesPricing = pgTable('services_pricing', {
 export const userWallets = pgTable('user_wallets', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  balance: integer('balance').notNull().default(0), // Stored in cents
+  balance: integer('balance').notNull().default(0),
   points:integer('points').notNull().default(0),
-  currency: text('currency').notNull().default('INR'), // Default currency
+  currency: text('currency').notNull().default('INR'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -115,22 +138,20 @@ export const userWallets = pgTable('user_wallets', {
 export const promoCodes = pgTable('promocodes', {
   id: serial('id').primaryKey(),
   code: text('code').unique().notNull(),
-  discountType: discountType('discount_type').notNull(),
-  discountValue: integer('discount_value').notNull(), // e.g., 10 for 10% or 500 for $5.00
-  expiryDate: timestamp('expiry_date'), // Nullable, some might not expire
-  usageLimit: integer('usage_limit'), // Nullable, some might have unlimited uses
+  discountTypeId: integer('discount_type_id').references(() => discountTypes.id).notNull(),
+  discountValue: integer('discount_value').notNull(),
+  expiryDate: timestamp('expiry_date'),
+  usageLimit: integer('usage_limit'),
   timesUsed: integer('times_used').notNull().default(0),
-  serviceId: integer('service_id').references(() => services.id), // Optional: if a promocode is specific to a service
+  serviceId: integer('service_id').references(() => services.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-
-
 export const offers = pgTable('offers', {
   id: serial('id').primaryKey(),
   imageUrl: text('image_url').notNull(),
-  link: text('link'), // Link to navigate to on click
+  link: text('link'),
   promocodeId: integer('promocode_id').references(() => promoCodes.id),
   isActive: boolean('is_active').default(true).notNull(),
   startDate: timestamp('start_date'),
@@ -139,20 +160,27 @@ export const offers = pgTable('offers', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const offerRelations = relations(offers, ({ one }) => ({
-  promocode: one(promoCodes, {
-    fields: [offers.promocodeId],
-    references: [promoCodes.id],
-  }),
-}));
-
 export const orders = pgTable('orders', {
   id: serial('id').primaryKey(),
   bookingId: integer('booking_id').references(() => bookings.id).unique().notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
   amount: integer('amount').notNull(),
   currency: text('currency').notNull().default('INR'),
-  status: orderStatus('status').notNull(),
+  statusId: integer('status_id').references(() => orderStatuses.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const userAddresses = pgTable('user_addresses', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  cityId: integer('city_id').references(() => cities.id),
+  label: text('label').notNull(),
+  address: text('address').notNull(),
+  lat: text('lat'),
+  lng: text('lng'),
+  usageCount: integer('usage_count').default(0),
+  isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -162,18 +190,16 @@ export const bookings = pgTable('bookings', {
   userId: integer('user_id').references(() => users.id),
   serviceId: integer('service_id').references(() => services.id),
   promocodeId: integer('promocode_id').references(() => promoCodes.id),
+  addressId: integer('address_id').references(() => userAddresses.id),
   bookingDate: timestamp('booking_date').notNull(),
-  status: bookingStatus('status').notNull(),
-  propertyType: propertyType('property_type'),
-  propertySize: propertySize('property_size'),
-  address: text('address'),
+  statusId: integer('status_id').references(() => bookingStatuses.id).notNull(),
+  propertyTypeId: integer('property_type_id').references(() => propertyTypes.id),
+  propertySizeId: integer('property_size_id').references(() => propertySizes.id),
   tipAmount: integer('tip_amount').default(0),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
-
-
 
 export const permissions = pgTable('permissions', {
     id: serial('id').primaryKey(),
@@ -181,10 +207,12 @@ export const permissions = pgTable('permissions', {
 });
 
 export const rolePermissions = pgTable('role_permissions', {
-    roleId: integer('role_id').references(() => roles.id),
-    permissionId: integer('permission_id').references(() => permissions.id),
-}, (t) => ({
-    pk: primaryKey({ columns: [t.roleId, t.permissionId] }),
+    id: serial('id').primaryKey(),
+    roleId: integer('role_id').references(() => userRoles.id).notNull(),
+    permissionId: integer('permission_id').references(() => permissions.id).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+    unq: unique('role_permissions_role_permission_unq').on(table.roleId, table.permissionId),
 }));
 
 export const userWalletRelations = relations(userWallets, ({ one }) => ({
@@ -197,7 +225,7 @@ export const userWalletRelations = relations(userWallets, ({ one }) => ({
 export const bookingLogs = pgTable('booking_logs', {
     id: serial('id').primaryKey(),
     bookingId: integer('booking_id').references(() => bookings.id),
-    status: bookingStatus('status').notNull(),
+    statusId: integer('status_id').references(() => bookingStatuses.id).notNull(),
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow(),
 });
@@ -205,14 +233,19 @@ export const bookingLogs = pgTable('booking_logs', {
 export const orderLogs = pgTable('order_logs', {
     id: serial('id').primaryKey(),
     orderId: integer('order_id').references(() => orders.id),
-    status: orderStatus('status').notNull(),
+    statusId: integer('status_id').references(() => orderStatuses.id).notNull(),
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const userRelations = relations(users, ({ one, many }) => ({
-    bookings: many(bookings), // A user can have many bookings
-    wallet: one(userWallets, { // A user has one wallet
+    role: one(userRoles, {
+        fields: [users.roleId],
+        references: [userRoles.id],
+    }),
+    bookings: many(bookings),
+    addresses: many(userAddresses),
+    wallet: one(userWallets, {
       fields: [users.id],
       references: [userWallets.userId],
     }),
@@ -221,7 +254,7 @@ export const userRelations = relations(users, ({ one, many }) => ({
 
 export const roleSettings = pgTable('role_settings', {
   id: serial('id').primaryKey(),
-  roleId: integer('role_id').references(() => roles.id).notNull(),
+  roleId: integer('role_id').references(() => userRoles.id).notNull(),
   key: text('settings_key').notNull(),
   value: text('settings_value'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -231,7 +264,8 @@ export const roleSettings = pgTable('role_settings', {
 }));
 
 export const promocodeRelations = relations(promoCodes, ({ one, many }) => ({
-  service: one(services, { fields: [promoCodes.serviceId], references: [services.id] }), // A promocode can be for a specific service
+  service: one(services, { fields: [promoCodes.serviceId], references: [services.id] }),
+  discountType: one(discountTypes, { fields: [promoCodes.discountTypeId], references: [discountTypes.id] }),
   bookings: many(bookings),
   offers: many(offers),
 }));
@@ -244,6 +278,10 @@ export const orderRelations = relations(orders, ({ one, many }) => ({
     user: one(users, {
         fields: [orders.userId],
         references: [users.id],
+    }),
+    status: one(orderStatuses, {
+        fields: [orders.statusId],
+        references: [orderStatuses.id],
     }),
     logs: many(orderLogs),
 }));
@@ -266,6 +304,7 @@ export const serviceRelations = relations(services, ({ one, many }) => ({
 export const cityRelations = relations(cities, ({ many }) => ({
     services: many(services),
     servicesPricing: many(servicesPricing),
+    userAddresses: many(userAddresses),
 }));
 
 export const frequentServiceRelations = relations(frequentServices, ({ one }) => ({
@@ -293,7 +332,7 @@ export const servicePricingRelations = relations(servicesPricing, ({ one }) => (
     }),
 }));
 
-export const roleRelations = relations(roles, ({ many }) => ({
+export const userRoleRelations = relations(userRoles, ({ many }) => ({
     permissions: many(rolePermissions),
     users: many(users),
     settings: many(roleSettings),
@@ -304,9 +343,9 @@ export const permissionRelations = relations(permissions, ({ many }) => ({
 }));
 
 export const rolePermissionRelations = relations(rolePermissions, ({ one }) => ({
-    role: one(roles, {
+    role: one(userRoles, {
         fields: [rolePermissions.roleId],
-        references: [roles.id],
+        references: [userRoles.id],
     }),
     permission: one(permissions, {
         fields: [rolePermissions.permissionId],
@@ -314,13 +353,23 @@ export const rolePermissionRelations = relations(rolePermissions, ({ one }) => (
     }),
 }));
 
-
-
 export const roleSettingsRelations = relations(roleSettings, ({ one }) => ({
-  role: one(roles, {
+  role: one(userRoles, {
     fields: [roleSettings.roleId],
-    references: [roles.id],
+    references: [userRoles.id],
   }),
+}));
+
+export const userAddressRelations = relations(userAddresses, ({ one, many }) => ({
+    user: one(users, {
+        fields: [userAddresses.userId],
+        references: [users.id],
+    }),
+    city: one(cities, {
+        fields: [userAddresses.cityId],
+        references: [cities.id],
+    }),
+    bookings: many(bookings),
 }));
 
 export const bookingRelations = relations(bookings, ({ one, many }) => ({
@@ -332,7 +381,23 @@ export const bookingRelations = relations(bookings, ({ one, many }) => ({
         fields: [bookings.serviceId],
         references: [services.id],
     }),
-    promoCode: one(promoCodes, { // A booking can use one promocode
+    address: one(userAddresses, {
+        fields: [bookings.addressId],
+        references: [userAddresses.id],
+    }),
+    status: one(bookingStatuses, {
+        fields: [bookings.statusId],
+        references: [bookingStatuses.id],
+    }),
+    propertyType: one(propertyTypes, {
+        fields: [bookings.propertyTypeId],
+        references: [propertyTypes.id],
+    }),
+    propertySize: one(propertySizes, {
+        fields: [bookings.propertySizeId],
+        references: [propertySizes.id],
+    }),
+    promoCode: one(promoCodes, {
       fields: [bookings.promocodeId],
       references: [promoCodes.id],
     }),
@@ -348,12 +413,20 @@ export const bookingLogRelations = relations(bookingLogs, ({ one }) => ({
         fields: [bookingLogs.bookingId],
         references: [bookings.id],
     }),
+    status: one(bookingStatuses, {
+        fields: [bookingLogs.statusId],
+        references: [bookingStatuses.id],
+    }),
 }));
 
 export const orderLogRelations = relations(orderLogs, ({ one }) => ({
     order: one(orders, {
         fields: [orderLogs.orderId],
         references: [orders.id],
+    }),
+    status: one(orderStatuses, {
+        fields: [orderLogs.statusId],
+        references: [orderStatuses.id],
     }),
 }));
 
@@ -369,4 +442,9 @@ export const categoryRelations = relations(categories, ({ one, many }) => ({
 	services: many(services),
 }));
 
-
+export const offerRelations = relations(offers, ({ one }) => ({
+  promocode: one(promoCodes, {
+    fields: [offers.promocodeId],
+    references: [promoCodes.id],
+  }),
+}));

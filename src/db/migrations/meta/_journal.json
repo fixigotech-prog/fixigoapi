@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1759494037370,
-      "tag": "0000_lush_hex",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1759575504515,
-      "tag": "0001_tricky_karma",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1759779899446,
-      "tag": "0002_tiny_absorbing_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1759829083790,
-      "tag": "0003_woozy_tyger_tiger",
+      "when": 1759930369013,
+      "tag": "0000_simple_proemial_gods",
       "breakpoints": true
     }
   ]
