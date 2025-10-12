@@ -9,11 +9,9 @@ interface App extends FastifyInstance {
 interface BookingBody {
   userId: number;
   serviceId: number;
+  addressId: number;
   bookingDate: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  propertyType?: 'apartment' | 'villa' | 'bungalow' | 'house' | 'office';
-  propertySize?: 'small' | 'medium' | 'large' | 'extra_large';
-  address?: string;
+  statusId: number;
   tipAmount?: number;
   notes?: string;
   promocode?: string;
@@ -24,17 +22,15 @@ interface BookingParams {
 }
 
 interface UpdateBookingBody {
-  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  propertyType?: 'apartment' | 'villa' | 'bungalow' | 'house' | 'office';
-  propertySize?: 'small' | 'medium' | 'large' | 'extra_large';
-  address?: string;
+  statusId?: number;
+  addressId?: number;
   tipAmount?: number;
   notes?: string;
 }
 
 export const createBooking = async (request: FastifyRequest<{ Body: BookingBody }>, reply: FastifyReply) => {
   const app = request.server as App;
-  const { userId, serviceId, bookingDate, status, propertyType, propertySize, address, tipAmount, notes, promocode } = request.body;
+  const { userId, serviceId, addressId, bookingDate, statusId, tipAmount, notes, promocode } = request.body;
 
   try {
     const newBooking = await app.db.transaction(async (tx: any) => {
@@ -72,11 +68,9 @@ export const createBooking = async (request: FastifyRequest<{ Body: BookingBody 
       const [booking] = await tx.insert(bookings).values({
         userId,
         serviceId,
+        addressId,
         bookingDate: new Date(bookingDate),
-        status,
-        propertyType,
-        propertySize,
-        address,
+        statusId,
         tipAmount: tipAmount || 0,
         notes,
         promocodeId,
@@ -118,13 +112,11 @@ export const getBooking = async (request: FastifyRequest<{ Params: BookingParams
 export const updateBooking = async (request: FastifyRequest<{ Body: UpdateBookingBody, Params: BookingParams }>, reply: FastifyReply) => {
   const app = request.server as App;
   const { id } = request.params;
-  const { status, propertyType, propertySize, address, tipAmount, notes } = request.body;
+  const { statusId, addressId, tipAmount, notes } = request.body;
 
   const [updatedBooking] = await app.db.update(bookings).set({
-    status,
-    propertyType,
-    propertySize,
-    address,
+    statusId,
+    addressId,
     tipAmount,
     notes,
     updatedAt: new Date(),

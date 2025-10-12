@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { promoCodes } from '../db/schema';
+import { promoCodes, discountTypes } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 interface App extends FastifyInstance {
@@ -15,12 +15,8 @@ export interface PromocodeBody {
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   expiryDate?: Date;
-  usageLimit?: number;
-  timesUsed?: number;
   serviceId?: number;
 }
-
-
 
 
 // GET all promocodes
@@ -48,13 +44,26 @@ export const getPromocode = async (request: FastifyRequest<{ Params: PromocodePa
 // POST a new promocode
 export const createPromocode = async (request: FastifyRequest<{ Body: PromocodeBody }>, reply: FastifyReply) => {
   const app = request.server as App;
-  const { body } = request;
+  const { code, discountType, discountValue, expiryDate, serviceId } = request.body;
   try {
-    const [newPromocode] = await app.db.insert(promoCodes).values(body).returning();
+    // Get discount type ID
+    const [discountTypeRecord] = await app.db.select().from(discountTypes).where(eq(discountTypes.name, discountType)).limit(1);
+    if (!discountTypeRecord) {
+      return reply.status(400).send({ message: 'Invalid discount type' });
+    }
+    const [newPromocode] = await app.db.insert(promoCodes).values({
+      code,
+      discountTypeId: discountTypeRecord.id,
+      discountType,
+      expiryDate: new Date(expiryDate),
+      discountValue,
+      serviceId,
+      usageLimit: 0
+    }).returning();
     return reply.status(201).send(newPromocode);
   } catch (error: any) {
     request.log.error(error, 'Error creating promocode');
-    if (error.code === '23505') { // unique_violation
+    if (error.code === '23505') {
       return reply.status(409).send({ message: 'A promocode with this code already exists.' });
     }
     throw new Error('Failed to create promocode.');
@@ -65,18 +74,36 @@ export const createPromocode = async (request: FastifyRequest<{ Body: PromocodeB
 export const updatePromocode = async (request: FastifyRequest<{ Params: PromocodeParams; Body: Partial<PromocodeBody> }>, reply: FastifyReply) => {
   const app = request.server as App;
   const { params, body } = request;
+  const { code, discountType, discountValue, expiryDate, serviceId } = body;
 
-  const updatePayload: Partial<PromocodeBody> = { ...body };
-
-  // Drizzle's .set() method ignores undefined keys, so we only need to check if the body is empty.
-  if (Object.keys(updatePayload).length === 0) {
+  if (Object.keys(body).length === 0) {
     return reply.status(400).send({ message: 'No update data provided.' });
   }
 
   try {
+    const updatePayload: any = {};
+
+    if (code !== undefined) updatePayload.code = code;
+    if (discountValue !== undefined) updatePayload.discountValue = discountValue;
+    if (expiryDate !== undefined) updatePayload.expiryDate = expiryDate;
+    if (serviceId !== undefined) updatePayload.serviceId = serviceId;
+
+    // Handle discount type lookup
+    if (discountType) {
+      const [discountTypeRecord] = await app.db.select().from(discountTypes).where(eq(discountTypes.name, discountType)).limit(1);
+
+      if (!discountTypeRecord) {
+        return reply.status(400).send({ message: 'Invalid discount type' });
+      }
+
+      updatePayload.discountTypeId = discountTypeRecord.id;
+    }
+
+    updatePayload.updatedAt = new Date();
+
     const [updatedPromocode] = await app.db
       .update(promoCodes)
-      .set({ ...updatePayload, updatedAt: new Date() })
+      .set(updatePayload)
       .where(eq(promoCodes.id, params.id))
       .returning();
 

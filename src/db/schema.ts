@@ -65,6 +65,27 @@ export const categories = pgTable('categories', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const serviceCategories = pgTable('service_categories', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  subtitle: text('subtitle'),
+  imageUrl: text('image_url'),
+  displayOrder: integer('display_order').default(0),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const serviceCategoryItems = pgTable('service_category_items', {
+  id: serial('id').primaryKey(),
+  categoryId: integer('category_id').references(() => serviceCategories.id).notNull(),
+  serviceId: integer('service_id').references(() => services.id).notNull(),
+  displayOrder: integer('display_order').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  unq: unique('service_category_items_category_service_unq').on(table.categoryId, table.serviceId),
+}));
+
 export const cities = pgTable('cities', {
   id: serial('id').primaryKey(),
   city: text('city').notNull(),
@@ -164,9 +185,32 @@ export const orders = pgTable('orders', {
   id: serial('id').primaryKey(),
   bookingId: integer('booking_id').references(() => bookings.id).unique().notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
-  amount: integer('amount').notNull(),
+  subtotal: integer('subtotal').notNull(),
+  discountAmount: integer('discount_amount').default(0),
+  taxAmount: integer('tax_amount').default(0),
+  totalAmount: integer('total_amount').notNull(),
   currency: text('currency').notNull().default('INR'),
   statusId: integer('status_id').references(() => orderStatuses.id).notNull(),
+  paymentMethod: text('payment_method'),
+  paymentReference: text('payment_reference'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const invoices = pgTable('invoices', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').references(() => orders.id).unique().notNull(),
+  invoiceNumber: text('invoice_number').unique().notNull(),
+  issueDate: timestamp('issue_date').defaultNow(),
+  dueDate: timestamp('due_date'),
+  subtotal: integer('subtotal').notNull(),
+  discountAmount: integer('discount_amount').default(0),
+  taxAmount: integer('tax_amount').default(0),
+  totalAmount: integer('total_amount').notNull(),
+  currency: text('currency').notNull().default('INR'),
+  status: text('status').notNull().default('pending'), // 'pending', 'paid', 'overdue', 'cancelled'
+  paidAt: timestamp('paid_at'),
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -175,10 +219,13 @@ export const userAddresses = pgTable('user_addresses', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   cityId: integer('city_id').references(() => cities.id),
+  propertyTypeId: integer('property_type_id').references(() => propertyTypes.id),
+  propertySizeId: integer('property_size_id').references(() => propertySizes.id),
   label: text('label').notNull(),
   address: text('address').notNull(),
   lat: text('lat'),
   lng: text('lng'),
+  is_default: boolean('is_default').default(false),
   usageCount: integer('usage_count').default(0),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
@@ -193,8 +240,6 @@ export const bookings = pgTable('bookings', {
   addressId: integer('address_id').references(() => userAddresses.id),
   bookingDate: timestamp('booking_date').notNull(),
   statusId: integer('status_id').references(() => bookingStatuses.id).notNull(),
-  propertyTypeId: integer('property_type_id').references(() => propertyTypes.id),
-  propertySizeId: integer('property_size_id').references(() => propertySizes.id),
   tipAmount: integer('tip_amount').default(0),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -219,6 +264,21 @@ export const userWalletRelations = relations(userWallets, ({ one }) => ({
   user: one(users, {
     fields: [userWallets.userId],
     references: [users.id],
+  }),
+}));
+
+export const serviceCategoryRelations = relations(serviceCategories, ({ many }) => ({
+  items: many(serviceCategoryItems),
+}));
+
+export const serviceCategoryItemRelations = relations(serviceCategoryItems, ({ one }) => ({
+  category: one(serviceCategories, {
+    fields: [serviceCategoryItems.categoryId],
+    references: [serviceCategories.id],
+  }),
+  service: one(services, {
+    fields: [serviceCategoryItems.serviceId],
+    references: [services.id],
   }),
 }));
 
@@ -250,6 +310,25 @@ export const userRelations = relations(users, ({ one, many }) => ({
       references: [userWallets.userId],
     }),
     orders: many(orders),
+}));
+
+export const userAddressRelations = relations(userAddresses, ({ one }) => ({
+  user: one(users, {
+    fields: [userAddresses.userId],
+    references: [users.id],
+  }),
+  city: one(cities, {
+    fields: [userAddresses.cityId],
+    references: [cities.id],
+  }),
+  propertyType: one(propertyTypes, {
+    fields: [userAddresses.propertyTypeId],
+    references: [propertyTypes.id],
+  }),
+  propertySize: one(propertySizes, {
+    fields: [userAddresses.propertySizeId],
+    references: [propertySizes.id],
+  }),
 }));
 
 export const roleSettings = pgTable('role_settings', {
@@ -284,6 +363,17 @@ export const orderRelations = relations(orders, ({ one, many }) => ({
         references: [orderStatuses.id],
     }),
     logs: many(orderLogs),
+    invoice: one(invoices, {
+        fields: [orders.id],
+        references: [invoices.orderId],
+    }),
+}));
+
+export const invoiceRelations = relations(invoices, ({ one }) => ({
+    order: one(orders, {
+        fields: [invoices.orderId],
+        references: [orders.id],
+    }),
 }));
 
 export const serviceRelations = relations(services, ({ one, many }) => ({

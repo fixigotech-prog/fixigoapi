@@ -22,6 +22,9 @@ import { propertyRoutes } from './routes/propertyRoutes';
 import { cityRoutes } from './routes/cityRoutes';
 import { frequentServiceRoutes } from './routes/frequentServiceRoutes';
 import { addressRoutes } from './routes/addressRoutes';
+import { serviceCategoryRoutes } from './routes/serviceCategoryRoutes';
+import { orderRoutes } from './routes/orderRoutes';
+import { invoiceRoutes } from './routes/invoiceRoutes';
 
 //declare module 'fastify
 //declare module 'fastify' {}
@@ -114,6 +117,9 @@ fastify.register(propertyRoutes, { prefix: '/api/properties' });
 fastify.register(cityRoutes, { prefix: '/api/cities' });
 fastify.register(frequentServiceRoutes, { prefix: '/api/frequent-services' });
 fastify.register(addressRoutes, { prefix: '/api/addresses' });
+fastify.register(serviceCategoryRoutes, { prefix: '/api/service-categories' });
+fastify.register(orderRoutes, { prefix: '/api/orders' });
+fastify.register(invoiceRoutes, { prefix: '/api/invoices' });
 
 const start = async () => {
   try {

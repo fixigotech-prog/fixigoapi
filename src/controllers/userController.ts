@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { users } from '../db/schema';
+import { users, userRoles } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcrypt';
@@ -19,7 +19,7 @@ interface RegisterBody {
   email?: string;
   password?: string;
   phone: string;
-  role: 'customer';
+  role?: 'customer';
 }
 
 interface LoginBody {
@@ -39,6 +39,13 @@ interface PhoneBody {
 export const register = async (request: FastifyRequest<{ Body: RegisterBody }>, reply: FastifyReply) => {
   const app = request.server as App;
   const { fullName, email, password, phone, role } = request.body;
+
+  // Get customer role ID (default role)
+  const [customerRole] = await app.db.select().from(userRoles).where(eq(userRoles.name, 'customer')).limit(1);
+
+  if (!customerRole) {
+    return reply.status(500).send({ message: 'System error: Customer role not found.' });
+  }
 
   // If email is provided, check if it's already taken by a verified user
   if (email) {
@@ -68,7 +75,7 @@ export const register = async (request: FastifyRequest<{ Body: RegisterBody }>, 
       fullName,
       email: email || null,
       password: hashedPassword,
-      role,
+      roleId: customerRole.id,
       otp,
       otpExpiresAt,
       updatedAt: new Date(),
@@ -76,20 +83,20 @@ export const register = async (request: FastifyRequest<{ Body: RegisterBody }>, 
   } else { // No user with this phone, create a new one
     // Check for unverified user with the same email but different phone
     if (email) {
-        const unverifiedUserByEmail = await app.db.query.users.findFirst({
-            where: and(eq(users.email, email), eq(users.isVerified, false)),
-        });
-        if (unverifiedUserByEmail) {
-            return reply.status(409).send({ message: 'This email is already used in a pending registration. Please use a different email or complete the verification for that account.' });
-        }
+      const unverifiedUserByEmail = await app.db.query.users.findFirst({
+        where: and(eq(users.email, email), eq(users.isVerified, false)),
+      });
+      if (unverifiedUserByEmail) {
+        return reply.status(409).send({ message: 'This email is already used in a pending registration. Please use a different email or complete the verification for that account.' });
+      }
     }
 
     await app.db.insert(users).values({
-      fullName:fullName,
+      fullName,
       email: email || null,
       password: hashedPassword,
-      phone:phone,
-      role: role || "customer",
+      phone,
+      roleId: customerRole.id,
       otp,
       otpExpiresAt
     });
@@ -97,7 +104,7 @@ export const register = async (request: FastifyRequest<{ Body: RegisterBody }>, 
 
   try {
     const message = composeMessage('login', 'en', { OTP: otp });
-    await sendSms(phone, message,"");
+    await sendSms(phone, message, "");
     return reply.status(200).send({ message: 'OTP sent to your phone number. Please verify to complete registration.' });
   } catch (error) {
     console.error('OTP sending failed:', error);
@@ -128,7 +135,7 @@ export const login = async (request: FastifyRequest<{ Body: LoginBody }>, reply:
 
   try {
     const message = composeMessage('login', 'en', { OTP: otp });
-    await sendSms(phone, message,"signin");
+    await sendSms(phone, message, "signin");
     return reply.status(200).send({ message: 'OTP sent to your phone number. Please verify to log in.' });
   } catch (error) {
     console.error('OTP sending failed:', error);
@@ -142,6 +149,9 @@ export const verifyOtp = async (request: FastifyRequest<{ Body: OtpBody }>, repl
 
   const user = await app.db.query.users.findFirst({
     where: eq(users.phone, phone),
+    with: {
+      role: true
+    }
   });
 
   if (!user) {
@@ -163,14 +173,35 @@ export const verifyOtp = async (request: FastifyRequest<{ Body: OtpBody }>, repl
     return reply.status(500).send({ message: 'Failed to verify user.' });
   }
 
-  const token = jwt.sign({ id: updatedUser.id, role: updatedUser.role }, process.env.JWT_SECRET!);
+  const token = jwt.sign(
+    {
+      id: updatedUser.id,
+      roleId: updatedUser.roleId,
+      role: user.role?.name,
+      phone: updatedUser.phone,
+      fullName: updatedUser.fullName
+    },
+    process.env.JWT_SECRET!,
+    { expiresIn: '7d' }
+  );
 
-  return reply.status(200).send({ message: 'User verified successfully.', token });
+  return reply.status(200).send({
+    message: 'User verified successfully.',
+    token,
+    user: {
+      id: updatedUser.id,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: user.role?.name,
+      isVip: updatedUser.isVip
+    }
+  });
 };
 
 export const resendOtp = async (request: FastifyRequest<{ Body: PhoneBody }>, reply: FastifyReply) => {
   const app = request.server as App;
-  const { phone,resendType } = request.body;
+  const { phone, resendType } = request.body;
 
   const user = await app.db.query.users.findFirst({
     where: eq(users.phone, phone),

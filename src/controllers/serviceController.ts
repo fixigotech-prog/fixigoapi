@@ -213,3 +213,31 @@ export const searchServicesByCategory = async (request: FastifyRequest<{ Queryst
 
   return reply.send(servicesWithCategory);
 };
+
+export const filterServicesByServiceId = async (request: FastifyRequest<{ Params: { serviceId: string } }>, reply: FastifyReply) => {
+  const app = request.server as App;
+  const { serviceId } = request.params;
+  const targetServiceId = parseInt(serviceId, 10);
+
+  // Get all services with details
+  const allServices = await app.db.query.services.findMany({
+    with: {
+      details: true,
+      category: true,
+    },
+  });
+
+  // Find the target service
+  const targetService = allServices.find(s => s.id === targetServiceId);
+  if (!targetService) {
+    return reply.status(404).send({ message: 'Service not found' });
+  }
+
+  // Filter services
+  const sr = allServices.filter(s => s.id === targetServiceId);
+  const sc = allServices.filter(s => s.categoryId === targetService.categoryId && s.id !== targetServiceId);
+  const usedServiceIds = new Set([...sr.map(s => s.id), ...sc.map(s => s.id)]);
+  const rs = allServices.filter(s => !usedServiceIds.has(s.id));
+
+  return reply.send({ sr, sc, rs });
+};

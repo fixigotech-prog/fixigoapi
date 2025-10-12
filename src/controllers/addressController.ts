@@ -8,10 +8,14 @@ interface App extends FastifyInstance {
 
 interface AddressBody {
   userId: number;
+  cityId?: number;
+  propertyTypeId: number;
+  propertySizeId: number;
   label: string;
   address: string;
   lat?: string;
   lng?: string;
+  is_default?: boolean;
 }
 
 interface AddressParams {
@@ -24,11 +28,11 @@ interface UserParams {
 
 export const addAddress = async (request: FastifyRequest<{ Body: AddressBody }>, reply: FastifyReply) => {
   const app = request.server as App;
-  const { userId, label, address, lat, lng } = request.body;
+  const { userId, cityId, propertyTypeId, propertySizeId, label, address, lat, lng, is_default } = request.body;
 
   const [newAddress] = await app.db
     .insert(userAddresses)
-    .values({ userId, label, address, lat, lng })
+    .values({ userId, cityId, propertyTypeId, propertySizeId, label, address, lat, lng, is_default })
     .returning();
 
   return reply.status(201).send(newAddress);
